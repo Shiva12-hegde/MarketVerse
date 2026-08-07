@@ -8,12 +8,35 @@ import { formatPrice, orderStatusLabel, orderStatusColor } from '../../utils/for
 export default function BuyerDashboard() {
   const { data: orders } = useQuery({
     queryKey: ['my-orders'],
-    queryFn: () => api.get('/orders/my').then((r) => r.data.orders),
+    queryFn: async () => {
+      try {
+        const r = await api.get('/orders/my');
+        return r.data.orders;
+      } catch {
+        const local = JSON.parse(localStorage.getItem('orders') || '[]');
+        return local.map((o) => ({
+          _id: o._id,
+          orderNumber: `ORD-${o._id.slice(-6).toUpperCase()}`,
+          status: 'pending',
+          createdAt: Number(o._id) || Date.now(),
+          total: o.summary?.total || 0,
+          items: o.items || [],
+        }));
+      }
+    },
   });
 
   const { data: personalized } = useQuery({
     queryKey: ['personalized'],
-    queryFn: () => api.get('/ai/personalized').then((r) => r.data.products),
+    queryFn: async () => {
+      try {
+        const r = await api.get('/ai/personalized');
+        return r.data.products;
+      } catch {
+        const { mockProducts } = await import('../../api/mockData');
+        return mockProducts.slice(0, 4);
+      }
+    },
   });
 
   const recentOrders = orders?.slice(0, 3) || [];
