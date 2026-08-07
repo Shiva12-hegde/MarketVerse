@@ -106,10 +106,10 @@ export const mockProducts = [
 ];
 
 export const mockCategories = [
-  { _id: 'cat_1', name: 'Electronics', icon: 'Headphones' },
-  { _id: 'cat_2', name: 'Wearables', icon: 'Watch' },
-  { _id: 'cat_3', name: 'Accessories', icon: 'Mouse' },
-  { _id: 'cat_4', name: 'Computers', icon: 'Laptop' },
-  { _id: 'cat_5', name: 'Monitors', icon: 'Tv' },
-  { _id: 'cat_6', name: 'Footwear', icon: 'ShoppingBag' }
+  { _id: 'cat_1', name: 'Electronics', icon: '🎧', productCount: 28 },
+  { _id: 'cat_2', name: 'Wearables', icon: '⌚', productCount: 15 },
+  { _id: 'cat_3', name: 'Accessories', icon: '🖱️', productCount: 34 },
+  { _id: 'cat_4', name: 'Computers', icon: '💻', productCount: 22 },
+  { _id: 'cat_5', name: 'Monitors', icon: '🖥️', productCount: 16 },
+  { _id: 'cat_6', name: 'Footwear', icon: '👟', productCount: 20 }
 ];
