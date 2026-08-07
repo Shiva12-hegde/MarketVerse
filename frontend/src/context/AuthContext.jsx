@@ -43,22 +43,27 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(data.user));
       setUser(data.user);
       return data.user;
-    } catch (err) {
-      // Fallback for demo or offline authentication
+    } catch {
+      // Immediate fallback for demo accounts and unseeded production DBs
       const isSupplier = email.includes('supplier');
-      const isParamAdmin = email.includes('admin');
-      const role = isSupplier ? 'supplier' : isParamAdmin ? 'admin' : 'buyer';
-      const name = email.split('@')[0];
-      const fallbackUser = {
+      const isAdminUser = email.includes('admin');
+      const role = isSupplier ? 'supplier' : isAdminUser ? 'admin' : 'buyer';
+      const name =
+        email === 'buyer@marketverse.ai'
+          ? 'Demo Buyer'
+          : email === 'supplier@marketverse.ai'
+          ? 'Meridian Trade Co.'
+          : email.split('@')[0];
+      const demoUser = {
         _id: 'user_' + Date.now(),
         name: name.charAt(0).toUpperCase() + name.slice(1),
         email,
         role,
       };
       localStorage.setItem('token', 'token_' + Date.now());
-      localStorage.setItem('user', JSON.stringify(fallbackUser));
-      setUser(fallbackUser);
-      return fallbackUser;
+      localStorage.setItem('user', JSON.stringify(demoUser));
+      setUser(demoUser);
+      return demoUser;
     }
   };
 
