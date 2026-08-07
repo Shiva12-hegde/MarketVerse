@@ -16,20 +16,24 @@ export const CartProvider = ({ children }) => {
   });
 
   const fetchCart = useCallback(async () => {
-    if (!isAuthenticated || !isBuyer) return;
+    if (!isAuthenticated) return;
     try {
       const { data } = await api.get('/cart');
-      setCart(data.cart);
-      setItemCount(data.cart?.items?.reduce((s, i) => s + i.quantity, 0) || 0);
-      localStorage.setItem('cart', JSON.stringify(data.cart));
-      localStorage.setItem('itemCount', JSON.stringify(data.cart?.items?.reduce((s, i) => s + i.quantity, 0) || 0));
+      if (data.cart?.items?.length) {
+        saveCartState(data.cart);
+      }
     } catch {
-      setCart(null);
-      setItemCount(0);
-      localStorage.removeItem('cart');
-      localStorage.removeItem('itemCount');
+      // Keep existing local cart state if backend request fails
+      const stored = localStorage.getItem('cart');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setCart(parsed);
+          setItemCount(parsed?.items?.reduce((s, i) => s + i.quantity, 0) || 0);
+        } catch {}
+      }
     }
-  }, [isAuthenticated, isBuyer]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchCart();
@@ -37,7 +41,7 @@ export const CartProvider = ({ children }) => {
 
   const saveCartState = (newCart) => {
     setCart(newCart);
-    const count = newCart?.items?.reduce((s, i) => s + i.quantity, 0) || 0;
+    const count = newCart?.items?.reduce((s, i) => s + (Number(i.quantity) || 0), 0) || 0;
     setItemCount(count);
     localStorage.setItem('cart', JSON.stringify(newCart));
     localStorage.setItem('itemCount', JSON.stringify(count));
@@ -46,7 +50,7 @@ export const CartProvider = ({ children }) => {
   const addToCart = async (productId, quantity = 1) => {
     try {
       const { data } = await api.post('/cart/add', { productId, quantity });
-      saveCartState(data.cart);
+      if (data.cart) saveCartState(data.cart);
       return data;
     } catch {
       // Local fallback using mock products if server endpoint is unreachable
@@ -59,8 +63,9 @@ export const CartProvider = ({ children }) => {
         images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80'],
       };
 
-      const currentItems = cart?.items ? [...cart.items] : [];
-      const existingIdx = currentItems.findIndex((i) => i.product?._id === productId || i.product === productId);
+      const storedCart = JSON.parse(localStorage.getItem('cart') || '{"items":[]}');
+      const currentItems = Array.isArray(storedCart?.items) ? [...storedCart.items] : [];
+      const existingIdx = currentItems.findIndex((i) => (i.product?._id || i.product) === productId);
       if (existingIdx > -1) {
         currentItems[existingIdx].quantity += quantity;
       } else {
@@ -77,7 +82,7 @@ export const CartProvider = ({ children }) => {
     try {
       await api.delete('/cart/clear');
     } catch {}
-    setCart(null);
+    setCart({ items: [] });
     setItemCount(0);
     localStorage.removeItem('cart');
     localStorage.removeItem('itemCount');
@@ -87,10 +92,11 @@ export const CartProvider = ({ children }) => {
     if (quantity <= 0) return removeItem(productId);
     try {
       const { data } = await api.put('/cart/update', { productId, quantity });
-      saveCartState(data.cart);
+      if (data.cart) saveCartState(data.cart);
     } catch {
-      const currentItems = cart?.items ? [...cart.items] : [];
-      const idx = currentItems.findIndex((i) => i.product?._id === productId || i.product === productId);
+      const storedCart = JSON.parse(localStorage.getItem('cart') || '{"items":[]}');
+      const currentItems = Array.isArray(storedCart?.items) ? [...storedCart.items] : [];
+      const idx = currentItems.findIndex((i) => (i.product?._id || i.product) === productId);
       if (idx > -1) {
         currentItems[idx].quantity = quantity;
         saveCartState({ items: currentItems });
@@ -101,9 +107,12 @@ export const CartProvider = ({ children }) => {
   const removeItem = async (productId) => {
     try {
       const { data } = await api.delete(`/cart/${productId}`);
-      saveCartState(data.cart);
+      if (data.cart) saveCartState(data.cart);
     } catch {
-      const currentItems = cart?.items ? cart.items.filter((i) => (i.product?._id || i.product) !== productId) : [];
+      const storedCart = JSON.parse(localStorage.getItem('cart') || '{"items":[]}');
+      const currentItems = Array.isArray(storedCart?.items)
+        ? storedCart.items.filter((i) => (i.product?._id || i.product) !== productId)
+        : [];
       saveCartState({ items: currentItems });
     }
   };
