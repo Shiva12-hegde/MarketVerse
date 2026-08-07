@@ -8,44 +8,37 @@ export const CartProvider = ({ children }) => {
   const { isAuthenticated, isBuyer } = useAuth();
   const [cart, setCart] = useState(() => {
     const stored = localStorage.getItem('cart');
-    return stored ? JSON.parse(stored) : null;
+    return stored ? JSON.parse(stored) : { items: [] };
   });
   const [itemCount, setItemCount] = useState(() => {
     const stored = localStorage.getItem('itemCount');
     return stored ? JSON.parse(stored) : 0;
   });
 
+  const saveCartState = (newCart) => {
+    const validCart = newCart && Array.isArray(newCart.items) ? newCart : { items: [] };
+    setCart(validCart);
+    const count = validCart.items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+    setItemCount(count);
+    localStorage.setItem('cart', JSON.stringify(validCart));
+    localStorage.setItem('itemCount', JSON.stringify(count));
+  };
+
   const fetchCart = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !isBuyer) return;
     try {
       const { data } = await api.get('/cart');
-      if (data.cart?.items?.length) {
+      if (data.cart?.items) {
         saveCartState(data.cart);
       }
     } catch {
-      // Keep existing local cart state if backend request fails
-      const stored = localStorage.getItem('cart');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setCart(parsed);
-          setItemCount(parsed?.items?.reduce((s, i) => s + i.quantity, 0) || 0);
-        } catch {}
-      }
+      // Keep existing local cart
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isBuyer]);
 
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
-
-  const saveCartState = (newCart) => {
-    setCart(newCart);
-    const count = newCart?.items?.reduce((s, i) => s + (Number(i.quantity) || 0), 0) || 0;
-    setItemCount(count);
-    localStorage.setItem('cart', JSON.stringify(newCart));
-    localStorage.setItem('itemCount', JSON.stringify(count));
-  };
 
   const addToCart = async (productId, quantity = 1) => {
     try {
@@ -53,7 +46,6 @@ export const CartProvider = ({ children }) => {
       if (data.cart) saveCartState(data.cart);
       return data;
     } catch {
-      // Local fallback using mock products if server endpoint is unreachable
       const { mockProducts } = await import('../api/mockData');
       const product = mockProducts.find((p) => p._id === productId) || {
         _id: productId,
@@ -82,10 +74,7 @@ export const CartProvider = ({ children }) => {
     try {
       await api.delete('/cart/clear');
     } catch {}
-    setCart({ items: [] });
-    setItemCount(0);
-    localStorage.removeItem('cart');
-    localStorage.removeItem('itemCount');
+    saveCartState({ items: [] });
   };
 
   const updateQuantity = async (productId, quantity) => {
