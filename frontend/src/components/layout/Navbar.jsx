@@ -44,21 +44,17 @@ export default function Navbar() {
           </nav>
 
           <div className="flex items-center gap-2">
-            {isAuthenticated && isBuyer && (
-              <>
-                <Link to="/wishlist" className="relative rounded-lg p-2 text-gray-600 hover:bg-gray-100">
-                  <Heart className="h-5 w-5" />
-                </Link>
-                <Link to="/cart" className="relative rounded-lg p-2 text-gray-600 hover:bg-gray-100">
-                  <ShoppingCart className="h-5 w-5" />
-                  {itemCount > 0 && (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
-                      {itemCount}
-                    </span>
-                  )}
-                </Link>
-              </>
-            )}
+            <Link to={isAuthenticated ? "/wishlist" : "/login?redirect=/wishlist"} className="relative rounded-lg p-2 text-gray-600 hover:bg-gray-100" title="Wishlist">
+              <Heart className="h-5 w-5" />
+            </Link>
+            <Link to="/cart" className="relative rounded-lg p-2 text-gray-600 hover:bg-gray-100" title="Cart">
+              <ShoppingCart className="h-5 w-5" />
+              {itemCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
+                  {itemCount}
+                </span>
+              )}
+            </Link>
 
             {isAuthenticated ? (
               <div className="group relative">

@@ -9,13 +9,54 @@ export default function BuyerOrders() {
 
   const { data: orders } = useQuery({
     queryKey: ['my-orders'],
-    queryFn: () => api.get('/orders/my').then((r) => r.data.orders),
+    queryFn: async () => {
+      try {
+        const r = await api.get('/orders/my');
+        return r.data.orders;
+      } catch {
+        const local = JSON.parse(localStorage.getItem('orders') || '[]');
+        return local.map((o) => ({
+          _id: o._id,
+          orderNumber: `ORD-${o._id.slice(-6).toUpperCase()}`,
+          status: 'pending',
+          createdAt: Number(o._id) || Date.now(),
+          total: o.summary?.total || 0,
+          items: o.items || [],
+        }));
+      }
+    },
     enabled: !id,
   });
 
   const { data: orderDetail } = useQuery({
     queryKey: ['order', id],
-    queryFn: () => api.get(`/orders/${id}`).then((r) => r.data.order),
+    queryFn: async () => {
+      try {
+        const r = await api.get(`/orders/${id}`);
+        return r.data.order;
+      } catch {
+        const local = JSON.parse(localStorage.getItem('orders') || '[]');
+        const found = local.find((o) => o._id === id);
+        if (!found) return null;
+        return {
+          _id: found._id,
+          orderNumber: `ORD-${found._id.slice(-6).toUpperCase()}`,
+          status: 'pending',
+          createdAt: Number(found._id) || Date.now(),
+          total: found.summary?.total || 0,
+          items: found.items.map((i) => ({
+            name: i.product?.name || 'Product',
+            image: i.product?.images?.[0] || 'https://via.placeholder.com/150',
+            price: i.product?.price || 0,
+            quantity: i.quantity,
+          })),
+          shippingAddress: found.shippingAddress,
+          timeline: [
+            { status: 'order_placed', note: 'Order placed successfully', date: Number(found._id) || Date.now() },
+          ],
+        };
+      }
+    },
     enabled: !!id,
   });
 
@@ -29,9 +70,14 @@ export default function BuyerOrders() {
               <h1 className="text-xl font-bold">{orderDetail.orderNumber}</h1>
               <p className="text-sm text-gray-500">Placed on {new Date(orderDetail.createdAt).toLocaleDateString()}</p>
             </div>
-            <span className={`rounded-full px-4 py-1.5 text-sm font-medium ${orderStatusColor[orderDetail.status]}`}>
-              {orderStatusLabel[orderDetail.status]}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={`rounded-full px-4 py-1.5 text-sm font-medium ${orderStatusColor[orderDetail.status] || 'bg-yellow-100 text-yellow-800'}`}>
+                {orderStatusLabel[orderDetail.status] || 'Pending'}
+              </span>
+              <Link to={`/bill/${orderDetail._id}`}>
+                <Button variant="accent" size="sm">View Tax Invoice / Bill</Button>
+              </Link>
+            </div>
           </div>
 
           <div className="mb-6 space-y-3">

@@ -5,7 +5,17 @@ import ProductCard from '../../components/product/ProductCard';
 export default function Wishlist() {
   const { data, isLoading } = useQuery({
     queryKey: ['wishlist'],
-    queryFn: () => api.get('/wishlist').then((r) => r.data.wishlist),
+    queryFn: async () => {
+      try {
+        const r = await api.get('/wishlist');
+        return r.data.wishlist;
+      } catch {
+        const savedIds = JSON.parse(localStorage.getItem('wishlist') || '[]');
+        const { mockProducts } = await import('../../api/mockData');
+        const products = mockProducts.filter((p) => savedIds.includes(p._id));
+        return { products };
+      }
+    },
   });
 
   return (

@@ -24,20 +24,54 @@ export default function Marketplace() {
   const { data, isLoading } = useQuery({
     queryKey: ['products', page, category, search, aiQuery, sort, minPrice, maxPrice],
     queryFn: async () => {
-      if (aiQuery) {
-        const res = await api.get('/products/ai-search', { params: { query: aiQuery } });
-        return { products: res.data.products, pagination: { page: 1, pages: 1, total: res.data.products.length } };
+      try {
+        if (aiQuery) {
+          const res = await api.get('/products/ai-search', { params: { query: aiQuery } });
+          return { products: res.data.products, pagination: { page: 1, pages: 1, total: res.data.products.length } };
+        }
+        const res = await api.get('/products', {
+          params: { page, limit: 12, category, search, sort, minPrice, maxPrice },
+        });
+        return res.data;
+      } catch (err) {
+        // Fallback to mock dataset if backend service is offline
+        const { mockProducts } = await import('../api/mockData');
+        let filtered = [...mockProducts];
+        if (category) {
+          filtered = filtered.filter(p => p.category.toLowerCase() === category.toLowerCase());
+        }
+        if (search) {
+          filtered = filtered.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase()));
+        }
+        if (minPrice) {
+          filtered = filtered.filter(p => p.price >= Number(minPrice));
+        }
+        if (maxPrice) {
+          filtered = filtered.filter(p => p.price <= Number(maxPrice));
+        }
+        if (sort === 'price_asc') filtered.sort((a, b) => a.price - b.price);
+        if (sort === 'price_desc') filtered.sort((a, b) => b.price - a.price);
+        if (sort === 'rating') filtered.sort((a, b) => b.rating - a.rating);
+
+        return {
+          products: filtered,
+          pagination: { page: 1, pages: 1, total: filtered.length },
+        };
       }
-      const res = await api.get('/products', {
-        params: { page, limit: 12, category, search, sort, minPrice, maxPrice },
-      });
-      return res.data;
     },
   });
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
-    queryFn: () => api.get('/categories').then((r) => r.data.categories),
+    queryFn: async () => {
+      try {
+        const r = await api.get('/categories');
+        return r.data.categories;
+      } catch {
+        const { mockCategories } = await import('../api/mockData');
+        return mockCategories;
+      }
+    },
   });
 
   const updateParam = (key, value) => {

@@ -1,30 +1,33 @@
 import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
-import api from '../api/client';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { formatPrice, discountedPrice, calculateCartTotals } from '../utils/format';
+import { getProductImage, handleImageError } from '../utils/imageFallback';
 import Button from '../components/ui/Button';
 
 export default function Cart() {
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { showToast } = useToast();
   const { cart, fetchCart, updateQuantity, removeItem } = useCart();
 
-  useEffect(() => { if (isAuthenticated) fetchCart(); }, [isAuthenticated, fetchCart]);
+  useEffect(() => {
+    if (isAuthenticated) fetchCart();
+  }, [isAuthenticated, fetchCart]);
 
   const summary = calculateCartTotals(cart);
 
-  if (!isAuthenticated) {
-    return (
-      <div className="container-app py-16 text-center">
-        <ShoppingBag className="mx-auto mb-4 h-12 w-12 text-gray-300" />
-        <h2 className="mb-2 text-xl font-bold">Your cart is empty</h2>
-        <p className="mb-6 text-gray-500">Login to view your cart</p>
-        <Link to="/login"><Button>Login</Button></Link>
-      </div>
-    );
-  }
+  const handleCheckout = () => {
+    if (!isAuthenticated) {
+      showToast('Please register or login to place an order', 'info');
+      navigate('/register?redirect=/checkout');
+      return;
+    }
+    navigate('/checkout');
+  };
 
   if (!summary.items.length) {
     return (
@@ -47,7 +50,12 @@ export default function Cart() {
             const price = discountedPrice(item.product.price, item.product.discount);
             return (
               <div key={item.product._id} className="flex gap-4 rounded-xl border border-gray-200 bg-white p-4">
-                <img src={item.product.images?.[0]} alt="" className="h-24 w-24 rounded-lg object-cover" />
+                <img
+                  src={getProductImage(item.product)}
+                  onError={(e) => handleImageError(e, item.product?.category)}
+                  alt={item.product.name}
+                  className="h-24 w-24 rounded-lg object-cover"
+                />
                 <div className="flex-1">
                   <Link to={`/products/${item.product._id}`} className="font-medium text-gray-900 hover:text-brand-600">
                     {item.product.name}
@@ -56,11 +64,11 @@ export default function Cart() {
                   <p className="mt-1 font-semibold">{formatPrice(price)}</p>
                   <div className="mt-2 flex items-center gap-3">
                     <div className="flex items-center rounded-lg border border-gray-300">
-                      <button onClick={() => updateQuantity(item.product._id, item.quantity - 1)} className="p-1.5">
+                      <button onClick={() => updateQuantity(item.product._id, item.quantity - 1)} className="p-1.5 hover:bg-gray-50">
                         <Minus className="h-3.5 w-3.5" />
                       </button>
                       <span className="w-8 text-center text-sm">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.product._id, item.quantity + 1)} className="p-1.5">
+                      <button onClick={() => updateQuantity(item.product._id, item.quantity + 1)} className="p-1.5 hover:bg-gray-50">
                         <Plus className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -85,9 +93,9 @@ export default function Cart() {
               <span>Total</span><span>{formatPrice(summary.total)}</span>
             </div>
           </div>
-          <Link to="/checkout" className="mt-6 block">
-            <Button className="w-full" size="lg">Proceed to Checkout</Button>
-          </Link>
+          <Button onClick={handleCheckout} className="w-full mt-6" size="lg">
+            Proceed to Checkout
+          </Button>
         </div>
       </div>
     </div>

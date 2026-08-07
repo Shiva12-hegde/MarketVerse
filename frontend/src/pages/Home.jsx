@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Shield, Truck, Sparkles, Users } from 'lucide-react';
 import api from '../api/client';
 import AISearchBar from '../components/search/AISearchBar';
@@ -9,14 +9,34 @@ import { ProductCardSkeleton } from '../components/ui/Skeleton';
 import Button from '../components/ui/Button';
 
 export default function Home() {
+  const navigate = useNavigate();
   const { data: featured, isLoading: featuredLoading } = useQuery({
     queryKey: ['featured'],
-    queryFn: () => api.get('/products/featured').then((r) => r.data),
+    queryFn: async () => {
+      try {
+        const r = await api.get('/products/featured');
+        return r.data;
+      } catch {
+        const { mockProducts } = await import('../api/mockData');
+        return {
+          featured: mockProducts.filter((p) => p.isFeatured),
+          trending: mockProducts,
+        };
+      }
+    },
   });
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
-    queryFn: () => api.get('/categories').then((r) => r.data.categories),
+    queryFn: async () => {
+      try {
+        const r = await api.get('/categories');
+        return r.data.categories;
+      } catch {
+        const { mockCategories } = await import('../api/mockData');
+        return mockCategories;
+      }
+    },
   });
 
   return (
@@ -40,9 +60,9 @@ export default function Home() {
               <AISearchBar large />
             </div>
             <div className="mt-8 flex flex-wrap justify-center gap-4">
-              <Link to="/marketplace"><Button variant="accent" size="lg">Browse Marketplace</Button></Link>
-              <Link to="/register?role=supplier"><Button variant="secondary" size="lg">Become a Supplier</Button></Link>
-            </div>
+                <Button variant="accent" size="lg" onClick={() => navigate('/marketplace')}>Browse Marketplace</Button>
+                <Button variant="secondary" size="lg" onClick={() => navigate('/register?role=supplier')}>Become a Supplier</Button>
+              </div>
           </div>
         </div>
       </section>

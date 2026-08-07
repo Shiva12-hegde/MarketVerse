@@ -12,6 +12,7 @@ import Categories from './pages/Categories';
 import ProductDetails from './pages/ProductDetails';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import Bill from './pages/Bill';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import BuyerDashboard from './pages/buyer/BuyerDashboard';
@@ -45,12 +46,14 @@ export default function App() {
             <Route path="products/:id" element={<ProductDetails />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
-            <Route path="cart" element={<ProtectedRoute roles={['buyer', 'admin']}><Cart /></ProtectedRoute>} />
+            <Route path="cart" element={<Cart />} />
             <Route path="checkout" element={<ProtectedRoute roles={['buyer', 'admin']}><Checkout /></ProtectedRoute>} />
-            <Route path="wishlist" element={<ProtectedRoute roles={['buyer', 'admin']}><Wishlist /></ProtectedRoute>} />
+            <Route path="bill/:orderId" element={<Bill />} />
+            <Route path="wishlist" element={<Wishlist />} />
             <Route element={<ProtectedRoute roles={['buyer', 'admin']}><DashboardLayout sidebar={<BuyerSidebar />} /></ProtectedRoute>}>
               <Route path="buyer" element={<BuyerDashboard />} />
               <Route path="buyer/orders" element={<BuyerOrders />} />
+              <Route path="buyer/orders/:id" element={<BuyerOrders />} />
               <Route path="buyer/profile" element={<BuyerProfile />} />
               <Route path="buyer/addresses" element={<BuyerAddresses />} />
               <Route path="buyer/wishlist" element={<Wishlist />} />

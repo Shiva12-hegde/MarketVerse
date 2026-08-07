@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Heart, ShoppingCart, Minus, Plus, Sparkles, Truck, Shield } from 'lucide-react';
 import api from '../api/client';
@@ -7,33 +7,48 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { formatPrice, discountedPrice } from '../utils/format';
+import { getProductImage, handleImageError } from '../utils/imageFallback';
 import StarRating from '../components/ui/StarRating';
 import ProductCard from '../components/product/ProductCard';
 import Button from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 
 export default function ProductDetails() {
+  const navigate = useNavigate();
   const { id } = useParams();
   const { isAuthenticated, isBuyer } = useAuth();
   const { addToCart } = useCart();
   const { showToast } = useToast();
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
+  const [isWishlisted, setIsWishlisted] = useState(() => {
+    const saved = JSON.parse(localStorage.getItem('wishlist') || '[]');
+    return saved.includes(id);
+  });
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['product', id],
-    queryFn: () => api.get(`/products/${id}`).then((r) => r.data),
+    queryFn: async () => {
+      try {
+        const r = await api.get(`/products/${id}`);
+        return r.data;
+      } catch {
+        const { mockProducts } = await import('../api/mockData');
+        const found = mockProducts.find((p) => p._id === id) || mockProducts[0];
+        return { product: found };
+      }
+    },
   });
 
   const { data: reviews } = useQuery({
     queryKey: ['reviews', id],
-    queryFn: () => api.get(`/reviews/product/${id}`).then((r) => r.data.reviews),
+    queryFn: () => api.get(`/reviews/product/${id}`).then((r) => r.data.reviews).catch(() => []),
   });
 
   const { data: recommendations } = useQuery({
     queryKey: ['recommendations', id],
-    queryFn: () => api.get(`/ai/recommendations/${id}`).then((r) => r.data),
+    queryFn: () => api.get(`/ai/recommendations/${id}`).then((r) => r.data).catch(() => ({ similar: [] })),
   });
 
   const wishlistMutation = useMutation({
@@ -62,17 +77,52 @@ export default function ProductDetails() {
 
   const price = discountedPrice(product.price, product.discount);
 
-  const handleAddToCart = async () => {
+  const handleWishlistToggle = async () => {
     if (!isAuthenticated) {
-      showToast('Please login to add to cart', 'error');
+      showToast('Please register or login to save items to your wishlist', 'info');
+      navigate('/register?redirect=/wishlist');
       return;
     }
+    try {
+      await wishlistMutation.mutateAsync();
+      const saved = JSON.parse(localStorage.getItem('wishlist') || '[]');
+      let updated;
+      if (saved.includes(id)) {
+        updated = saved.filter((item) => item !== id);
+        setIsWishlisted(false);
+      } else {
+        updated = [...saved, id];
+        setIsWishlisted(true);
+      }
+      localStorage.setItem('wishlist', JSON.stringify(updated));
+    } catch {
+      // Toggle local state fallback
+      const saved = JSON.parse(localStorage.getItem('wishlist') || '[]');
+      const nextState = !isWishlisted;
+      setIsWishlisted(nextState);
+      const updated = nextState ? [...saved, id] : saved.filter((item) => item !== id);
+      localStorage.setItem('wishlist', JSON.stringify(updated));
+      showToast(nextState ? 'Added to wishlist!' : 'Removed from wishlist');
+    }
+  };
+
+  const handleAddToCart = async () => {
     try {
       await addToCart(product._id, quantity);
       showToast('Added to cart!');
     } catch {
       showToast('Failed to add to cart', 'error');
     }
+  };
+
+  const handleBuyNow = async () => {
+    await handleAddToCart();
+    if (!isAuthenticated) {
+      showToast('Please register or login to complete your order', 'info');
+      navigate('/register?redirect=/checkout');
+      return;
+    }
+    navigate('/checkout');
   };
 
   return (
@@ -90,7 +140,8 @@ export default function ProductDetails() {
         <div>
           <div className="mb-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
             <img
-              src={product.images?.[activeImage] || 'https://via.placeholder.com/600'}
+              src={product.images?.[activeImage] ? product.images[activeImage] : getProductImage(product)}
+              onError={(e) => handleImageError(e, product.category)}
               alt={product.name}
               className="aspect-square w-full object-cover"
             />
@@ -103,7 +154,12 @@ export default function ProductDetails() {
                   onClick={() => setActiveImage(i)}
                   className={`h-16 w-16 overflow-hidden rounded-lg border-2 ${activeImage === i ? 'border-brand-600' : 'border-gray-200'}`}
                 >
-                  <img src={img} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={img}
+                    onError={(e) => handleImageError(e, product.category)}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                 </button>
               ))}
             </div>
@@ -166,24 +222,24 @@ export default function ProductDetails() {
           )}
 
           <div className="mb-8 flex flex-wrap gap-3">
-            {isBuyer && product.stock > 0 && (
+            {product.stock > 0 && (
               <>
                 <Button onClick={handleAddToCart} size="lg">
                   <ShoppingCart className="h-4 w-4" /> Add to Cart
                 </Button>
-                <Button variant="accent" size="lg" onClick={async () => { await handleAddToCart(); window.location.href = '/checkout'; }}>
+                <Button variant="accent" size="lg" onClick={handleBuyNow}>
                   Buy Now
                 </Button>
               </>
             )}
-            {isAuthenticated && isBuyer && (
-              <Button variant="secondary" size="lg" onClick={() => wishlistMutation.mutate()}>
-                <Heart className="h-4 w-4" /> Wishlist
-              </Button>
-            )}
-            {!isAuthenticated && (
-              <Link to="/login"><Button size="lg">Login to Purchase</Button></Link>
-            )}
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={handleWishlistToggle}
+              className={isWishlisted ? 'border-red-200 bg-red-50 text-red-600' : ''}
+            >
+              <Heart className={`h-4 w-4 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} /> Wishlist
+            </Button>
           </div>
 
           <div className="mb-6 flex gap-6 text-sm text-gray-600">

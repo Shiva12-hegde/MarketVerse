@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { formatPrice, discountedPrice } from '../../utils/format';
+import { getProductImage, handleImageError } from '../../utils/imageFallback';
 import StarRating from '../ui/StarRating';
+import AddToCartButton from '../ui/AddToCartButton';
 
 export default function ProductCard({ product }) {
   const price = discountedPrice(product.price, product.discount);
@@ -12,7 +14,8 @@ export default function ProductCard({ product }) {
     >
       <div className="relative aspect-square overflow-hidden bg-gray-100">
         <img
-          src={product.images?.[0] || 'https://via.placeholder.com/400'}
+          src={getProductImage(product)}
+          onError={(e) => handleImageError(e, product.category)}
           alt={product.name}
           className="h-full w-full object-cover transition group-hover:scale-105"
           loading="lazy"
@@ -39,11 +42,14 @@ export default function ProductCard({ product }) {
         <div className="mb-2">
           <StarRating rating={product.rating} />
         </div>
-        <div className="mt-auto flex items-baseline gap-2">
-          <span className="text-lg font-bold text-gray-900">{formatPrice(price)}</span>
-          {product.discount > 0 && (
-            <span className="text-sm text-gray-400 line-through">{formatPrice(product.price)}</span>
-          )}
+        <div className="mt-auto flex flex-col gap-2">
+          <div className="flex items-baseline gap-2">
+            <span className="text-lg font-bold text-gray-900">{formatPrice(price)}</span>
+            {product.discount > 0 && (
+              <span className="text-sm text-gray-400 line-through">{formatPrice(product.price)}</span>
+            )}
+          </div>
+          <AddToCartButton productId={product._id} />
         </div>
         {product.stock <= 10 && product.stock > 0 && (
           <p className="mt-1 text-xs text-orange-600">Only {product.stock} left</p>

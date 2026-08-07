@@ -5,7 +5,15 @@ import CategoryCard from '../components/product/CategoryCard';
 export default function Categories() {
   const { data: categories, isLoading } = useQuery({
     queryKey: ['categories'],
-    queryFn: () => api.get('/categories').then((r) => r.data.categories),
+    queryFn: async () => {
+      try {
+        const r = await api.get('/categories');
+        return r.data.categories;
+      } catch {
+        const { mockCategories } = await import('../api/mockData');
+        return mockCategories;
+      }
+    },
   });
 
   return (
