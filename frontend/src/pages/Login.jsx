@@ -18,11 +18,11 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await login(data.email, data.password);
-      showToast(`Welcome back, ${user.name}!`);
-      const from = searchParams.get('from') || '/';
-      if (user.role === 'supplier') navigate('/supplier');
-      else if (user.role === 'admin') navigate('/admin');
-      else navigate(from);
+      if (user) {
+        showToast(`Welcome back, ${user.name}!`);
+        const redirectPath = searchParams.get('redirect') || searchParams.get('from') || (user.role === 'supplier' ? '/supplier' : '/buyer');
+        navigate(redirectPath);
+      }
     } catch (err) {
       showToast(err.response?.data?.message || 'Login failed', 'error');
     } finally {

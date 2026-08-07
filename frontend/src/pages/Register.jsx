@@ -20,8 +20,11 @@ export default function Register() {
     setLoading(true);
     try {
       const user = await registerUser(data);
-      showToast('Account created successfully!');
-      navigate(user.role === 'supplier' ? '/supplier/profile' : '/buyer');
+      if (user) {
+        showToast('Account created successfully!');
+        const redirectPath = searchParams.get('redirect') || (user.role === 'supplier' ? '/supplier' : '/buyer');
+        navigate(redirectPath);
+      }
     } catch (err) {
       showToast(err.response?.data?.message || 'Registration failed', 'error');
     } finally {
