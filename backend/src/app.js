@@ -36,6 +36,10 @@ app.use(cookieParser());
 
 app.use('/api/', rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'MarketVerse AI Backend API is live!' });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'MarketVerse AI API is running' });
 });
